@@ -16,12 +16,14 @@ import CampaignEngine from './components/CampaignEngine';
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'recruit' | 'team' | 'inventory' | 'battle'>('dashboard');
   const [battleMode, setBattleMode] = useState<'hub' | 'campaign' | 'arena' | 'boss'>('hub');
+  const [activeBattles, setActiveBattles] = useState({ boss: false, campaign: false });
 
   const { resolveBug } = useGameStore();
 
   const handleBattleEnd = (success: boolean) => {
     resolveBug(success);
     setBattleMode('hub');
+    setActiveBattles(prev => ({ ...prev, boss: false }));
     setCurrentScreen('dashboard');
   };
 
@@ -121,7 +123,11 @@ export default function App() {
           <div className="flex-1 overflow-hidden relative p-2 md:p-6 flex flex-col custom-scrollbar">
             {/* Use display:none to persist the components when switching tabs */}
             <div className={`w-full h-full ${currentScreen === 'dashboard' ? 'block' : 'hidden'}`}>
-              <Dashboard onEnterBattle={() => { setCurrentScreen('battle'); setBattleMode('boss'); }} />
+              <Dashboard onEnterBattle={() => {
+                setCurrentScreen('battle');
+                setBattleMode('boss');
+                setActiveBattles(prev => ({ ...prev, boss: true }));
+              }} />
             </div>
             <div className={`w-full h-full ${currentScreen === 'recruit' ? 'block' : 'hidden'}`}>
               <GachaPortal />
@@ -135,14 +141,28 @@ export default function App() {
 
             {/* Battle routes */}
             <div className={`w-full h-full ${(currentScreen === 'battle' && battleMode === 'hub') ? 'block' : 'hidden'}`}>
-              <BattleHub onSelectMode={(mode) => setBattleMode(mode)} />
+              <BattleHub onSelectMode={(mode) => {
+                setBattleMode(mode);
+                if (mode === 'boss' || mode === 'campaign') {
+                  setActiveBattles(prev => ({ ...prev, [mode]: true }));
+                }
+              }} />
             </div>
-            <div className={`w-full h-full ${(currentScreen === 'battle' && battleMode === 'boss') ? 'block' : 'hidden'}`}>
-              <BattleEngine onBattleEnd={handleBattleEnd} />
-            </div>
-            <div className={`w-full h-full ${(currentScreen === 'battle' && battleMode === 'campaign') ? 'block' : 'hidden'}`}>
-              <CampaignEngine onExit={() => setBattleMode('hub')} />
-            </div>
+
+            {activeBattles.boss && (
+              <div className={`w-full h-full ${(currentScreen === 'battle' && battleMode === 'boss') ? 'block' : 'hidden'}`}>
+                <BattleEngine onBattleEnd={handleBattleEnd} />
+              </div>
+            )}
+
+            {activeBattles.campaign && (
+              <div className={`w-full h-full ${(currentScreen === 'battle' && battleMode === 'campaign') ? 'block' : 'hidden'}`}>
+                <CampaignEngine onExit={() => {
+                  setBattleMode('hub');
+                  setActiveBattles(prev => ({ ...prev, campaign: false }));
+                }} />
+              </div>
+            )}
           </div>
         </main>
       </div>

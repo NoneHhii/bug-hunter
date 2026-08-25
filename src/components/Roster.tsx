@@ -3,20 +3,29 @@ import { useGameStore, type OwnedDev, type OwnedArtifact } from '../store/useGam
 import { AnimatePresence } from 'framer-motion';
 // import toast from 'react-hot-toast';
 import { DndContext, useDraggable, useDroppable, DragOverlay, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 // --- Subcomponents for DND ---
 function DevCard({ dev }: { dev: OwnedDev }) {
-  const { isOver, setNodeRef } = useDroppable({
+  const { consumeCoffee, healDev } = useGameStore();
+  const { isOver, setNodeRef: setDroppableRef } = useDroppable({
     id: `dev-droppable-${dev.uid}`,
-    data: { type: 'dev-slot', devUid: dev.uid }
+    data: { type: 'dev-slot', devUid: dev.uid, devId: dev.id }
+  });
+
+  const { attributes, listeners, setNodeRef: setDraggableRef, isDragging } = useDraggable({
+    id: `dev-draggable-${dev.uid}`,
+    data: { type: 'dev', devUid: dev.uid, devId: dev.id, devData: dev },
+    disabled: dev.activity !== 'IDLE'
   });
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setDroppableRef}
       className={`relative border-2 w-full h-[220px] p-2 flex flex-col items-center transition-all overflow-hidden group shrink-0
         ${isOver ? 'border-[var(--color-neon-cyan)] shadow-[inset_0_0_20px_rgba(0,245,245,0.2)] bg-cyan-950/30' : 'border-[var(--color-rpg-border)] bg-[var(--color-rpg-panel)] hover:border-[var(--color-neon-purple)]'}
+        ${isDragging ? 'opacity-30' : 'opacity-100'}
       `}
     >
       <div className="absolute top-1 left-1 text-[10px] font-bold text-[var(--color-neon-gold)] z-10 bg-black/50 px-1">{'⭐'.repeat(dev.star)}</div>
@@ -28,13 +37,36 @@ function DevCard({ dev }: { dev: OwnedDev }) {
         {dev.currentHp <= 0 ? 'DEAD' : dev.activity}
       </div>
 
-      <img src={dev.avatarUrl} alt={dev.role} className={`w-14 h-14 object-cover border border-[#333] pointer-events-none mt-4 ${dev.currentHp <= 0 ? 'grayscale' : ''}`} />
-      <div className="font-bold text-center text-[10px] text-[var(--color-neon-cyan)] mt-2 uppercase w-full truncate">{dev.name}</div>
+      <img 
+        ref={setDraggableRef}
+        {...listeners}
+        {...attributes}
+        src={dev.avatarUrl} 
+        alt={dev.role} 
+        className={`w-14 h-14 object-cover border border-[#333] mt-4 cursor-grab active:cursor-grabbing hover:border-[var(--color-neon-cyan)] hover:scale-105 transition-transform ${dev.currentHp <= 0 ? 'grayscale' : ''}`} 
+      />
+      <div className="font-bold text-center text-[10px] text-[var(--color-neon-cyan)] mt-2 uppercase w-full truncate">Lv.{dev.level} {dev.name}</div>
       <div className="text-[9px] text-gray-400 font-mono uppercase text-center">{dev.techStack} | {dev.role}</div>
 
       {/* HP Bar */}
       <div className="w-full bg-[#0a0a0a] border-t border-[#333] text-[9px] p-1 mt-1 font-mono text-gray-400">
-        <div className="flex justify-between"><span>HP:</span><span className={`${dev.currentHp <= 0 ? 'text-red-500' : 'text-[var(--color-neon-green)]'}`}>{Math.floor(dev.currentHp)}/{dev.baseStats.hp}</span></div>
+        <div className="flex justify-between items-center">
+            <span className={`${dev.currentHp <= 0 ? 'text-red-500' : 'text-[var(--color-neon-green)]'}`}>HP: {Math.floor(dev.currentHp)}/{dev.baseStats.hp}</span>
+            {dev.currentHp < dev.baseStats.hp && (
+                <button 
+                  onClick={() => {
+                    if (consumeCoffee(500)) {
+                       healDev(dev.uid, dev.baseStats.hp);
+                    } else {
+                       alert('Not enough Coffee Beans (Need 500)');
+                    }
+                  }}
+                  className="text-[8px] bg-[#3a2010] text-[#ffb070] border border-[#ffb070] px-1 py-0.5 hover:bg-[#ffb070] hover:text-black transition-colors z-30 relative pointer-events-auto"
+                >
+                  ☕ HEAL
+                </button>
+            )}
+        </div>
       </div>
 
       <div className="flex gap-2 mt-2 z-10 w-full justify-center">
@@ -120,18 +152,34 @@ function ArtifactSlot({ devUid, artifactUid }: { devUid: string, artifactUid?: s
 }
 
 export default function Roster() {
-  const { inventory, artifactInventory, equipArtifact } = useGameStore();
+  const { inventory, artifactInventory, equipArtifact, mergeDevs } = useGameStore();
   const [activeDragArt, setActiveDragArt] = useState<OwnedArtifact | null>(null);
+  const [activeDragDev, setActiveDragDev] = useState<OwnedDev | null>(null);
+
+  useEffect(() => {
+    const handleEasterEgg = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      toast(`Chúc mừng ${customEvent.detail.name} đã học được cách đếm mảng bắt đầu từ số 0! (Level 1)`, {
+        icon: '🎉',
+        style: { background: '#111', color: '#0f0', border: '1px solid #0f0', fontFamily: 'monospace' },
+        duration: 5000,
+      });
+    };
+    window.addEventListener('EASTER_EGG_LVL1', handleEasterEgg);
+    return () => window.removeEventListener('EASTER_EGG_LVL1', handleEasterEgg);
+  }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
-    const type = event.active.data.current?.type;
-    if (type === 'artifact') {
-      setActiveDragArt(event.active.data.current?.artifact as OwnedArtifact);
+    if (event.active.data.current?.type === 'artifact') {
+      setActiveDragArt(event.active.data.current.artifact);
+    } else if (event.active.data.current?.type === 'dev') {
+      setActiveDragDev(event.active.data.current.devData);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragArt(null);
+    setActiveDragDev(null);
 
     const { active, over } = event;
     if (!over) return;
@@ -145,6 +193,20 @@ export default function Roster() {
 
       if (artifact && targetDevUid) {
         equipArtifact(targetDevUid, artifact.uid);
+      }
+    } else if (activeType === 'dev' && overType === 'dev-slot') {
+      const sacrificeUid = active.data.current?.devUid as string;
+      const targetDevUid = over.data.current?.devUid as string;
+      const sacrificeId = active.data.current?.devId as string;
+      const targetId = over.data.current?.devId as string;
+
+      if (sacrificeUid && targetDevUid && sacrificeUid !== targetDevUid) {
+        if (sacrificeId === targetId) {
+           mergeDevs(targetDevUid, sacrificeUid);
+           toast.success('MERGE SUCCESS: Level Up!');
+        } else {
+           toast.error('MERGE FAILED: Incompatible Classes');
+        }
       }
     }
   };
@@ -203,6 +265,9 @@ export default function Roster() {
       {/* Drag Overlay */}
       <DragOverlay dropAnimation={null}>
         {activeDragArt ? <DraggableArtifact artifact={activeDragArt} isOverlay={true} /> : null}
+        {activeDragDev ? (
+          <img src={activeDragDev.avatarUrl} className="w-14 h-14 object-cover border-2 border-[var(--color-neon-cyan)] shadow-[0_0_15px_var(--color-neon-cyan)] z-[9999]" />
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

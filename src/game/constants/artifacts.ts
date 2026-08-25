@@ -18,69 +18,153 @@ export interface ArtifactDef {
 }
 
 export const ARTIFACTS: Record<string, ArtifactDef> = {
-  mechanical_keyboard: {
-    id: 'mechanical_keyboard',
-    name: 'Tactile Switch Keyboard',
-    rarity: 3,
-    icon: '⌨️',
-    description: 'Bàn phím cơ tiếng gõ lạch cạch giúp tăng tốc độ gõ code.',
-    stats: { spd: 30, atk: 10 },
-    synergy: {
-      target: 'DPS',
-      multiplier: 2.0,
-      description: '+100% hiệu quả cho Role DPS'
-    }
-  },
-  noise_cancelling_hp: {
-    id: 'noise_cancelling_hp',
-    name: 'Noise-Cancelling Headphones',
-    rarity: 4,
-    icon: '🎧',
-    description: 'Cách ly khỏi thế giới bên ngoài, giảm stress.',
-    stats: { hp: 500, def: 50 },
+  kubernetes_core: {
+    id: 'kubernetes_core',
+    name: 'Kubernetes Core Cluster',
+    rarity: 5,
+    icon: '☸️',
+    description: 'Điều phối hàng nghìn container, buff phòng thủ cho toàn hệ thống.',
+    stats: { def: 200, hp: 1000, spd: 30 },
     synergy: {
       target: 'Tanker',
       multiplier: 1.5,
-      description: '+50% hiệu quả cho Role Tanker'
-    }
+      description: '+50% hiệu quả phòng thủ cho Role Tanker',
+    },
   },
-  stackoverflow_pro: {
-    id: 'stackoverflow_pro',
-    name: 'StackOverflow Premium',
+  copilot_enterprise: {
+    id: 'copilot_enterprise',
+    name: 'GitHub Copilot Enterprise',
     rarity: 5,
-    icon: '🌐',
-    description: 'Copy paste code siêu cấp vũ trụ không bao giờ dính bug.',
-    stats: { atk: 150, spd: 50 },
+    icon: '🤖',
+    description: 'Tự động gợi ý hàng chục dòng code không lỗi.',
+    stats: { atk: 180, spd: 60 },
     synergy: {
-      target: '10x Architect',
+      target: 'DPS',
+      multiplier: 2.0,
+      description: '+100% chỉ số tấn công cho Role DPS',
+    },
+  },
+  herman_miller_chair: {
+    id: 'herman_miller_chair',
+    name: 'Embody Ergonomic Chair',
+    rarity: 5,
+    icon: '🪑',
+    description: 'Bảo vệ cột sống tuyệt đối, hồi phục Sanity liên tục.',
+    stats: { hp: 1500, def: 120 },
+    synergy: {
+      target: 'Support',
+      multiplier: 1.8,
+      description: '+80% chỉ số máu cho Role Support',
+    },
+  },
+
+  // --- TIER 4 SAO ---
+  redis_turbo: {
+    id: 'redis_turbo',
+    name: 'Redis In-Memory Turbo',
+    rarity: 4,
+    icon: '⚡',
+    description: 'Phản hồi tốc độ ánh sáng qua cache RAM.',
+    stats: { spd: 150, atk: 80 },
+    synergy: {
+      target: 'Burst',
+      multiplier: 2.0,
+      description: '+100% hiệu quả tốc độ cho Role Burst',
+    },
+  },
+  docker_compose: {
+    id: 'docker_compose',
+    name: 'Docker Compose Spec',
+    rarity: 4,
+    icon: '🐳',
+    description: 'Đóng gói toàn bộ service, lỗi ở đâu cách ly ở đó.',
+    stats: { hp: 800, def: 120 },
+    synergy: {
+      target: 'Go/Docker',
+      multiplier: 1.8,
+      description: '+80% hiệu quả cho Tech Stack Go/Docker',
+    },
+  },
+  cloudflare_shield: {
+    id: 'cloudflare_shield',
+    name: 'Cloudflare WAF Pro',
+    rarity: 4,
+    icon: '🛡️',
+    description: 'Chặn đứng lưu lượng tấn công xấu và mã độc.',
+    stats: { def: 150, hp: 600 },
+    synergy: {
+      target: 'Tanker',
+      multiplier: 1.6,
+      description: '+60% hiệu quả phòng thủ cho Tanker',
+    },
+  },
+
+  // --- TIER 3 SAO ---
+  mechanical_keyboard: {
+    id: 'mechanical_keyboard',
+    name: 'Tactile Blue Switch Keyboard',
+    rarity: 3,
+    icon: '⌨️',
+    description: 'Gõ lạch cạch tạo nhịp điệu làm việc dồn dập.',
+    stats: { spd: 40, atk: 25 },
+    synergy: {
+      target: 'DPS',
       multiplier: 1.5,
-      description: '+50% hiệu quả cho 10x Architect'
-    }
+      description: '+50% hiệu quả cho Role DPS',
+    },
+  },
+  dual_4k_monitors: {
+    id: 'dual_4k_monitors',
+    name: 'Dual 4K Vertical Monitors',
+    rarity: 3,
+    icon: '🖥️',
+    description: 'Một bên code, một bên đọc stack trace lỗi.',
+    stats: { def: 70, atk: 30 },
+    synergy: {
+      target: 'Support',
+      multiplier: 1.5,
+      description: '+50% hiệu quả cho Role Support',
+    },
+  },
+  energy_drink: {
+    id: 'energy_drink',
+    name: 'Monster Energy 500ml',
+    rarity: 3,
+    icon: '🥫',
+    description: 'Tăng lực đột biến để kịp chạy sprint trước deadline.',
+    stats: { spd: 80, hp: -100 },
+    synergy: {
+      target: 'Burst',
+      multiplier: 1.5,
+      description: '+50% tốc độ cho Role Burst',
+    },
+  },
+
+  // --- TIER 2 SAO ---
+  rubber_duck: {
+    id: 'rubber_duck',
+    name: 'Debugging Rubber Duck',
+    rarity: 2,
+    icon: '🦆',
+    description: 'Tâm sự với vịt vàng giúp tự nhận ra lỗi ngớ ngẩn.',
+    stats: { def: 30, hp: 150 },
+    synergy: {
+      target: 'Support',
+      multiplier: 1.4,
+      description: '+40% hiệu quả cho Role Support',
+    },
   },
   coffee_thermos: {
     id: 'coffee_thermos',
-    name: 'Venti Cold Brew',
+    name: 'Cold Brew 1 Lít',
     rarity: 2,
     icon: '☕',
-    description: 'Cà phê đặc duy trì sự tỉnh táo qua đêm.',
-    stats: { hp: 200, spd: 10 },
+    description: 'Duy trì năng lượng làm việc qua đêm.',
+    stats: { hp: 250, spd: 15 },
     synergy: {
-      target: 'Support',
-      multiplier: 2.0,
-      description: '+100% hiệu quả cho Role Support'
-    }
-  },
-  dual_monitor: {
-    id: 'dual_monitor',
-    name: 'Vertical Dual Monitor',
-    rarity: 3,
-    icon: '🖥️',
-    description: 'Một màn code, một màn đọc log.',
-    stats: { def: 60, atk: 20 },
-    synergy: {
-      target: 'Backend',
-      multiplier: 2.0,
-      description: '+100% hiệu quả cho nhánh Backend'
-    }
+      target: 'Tanker',
+      multiplier: 1.3,
+      description: '+30% hiệu quả cho Role Tanker',
+    },
   }
 };

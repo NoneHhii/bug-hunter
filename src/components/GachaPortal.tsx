@@ -70,7 +70,7 @@ export default function GachaPortal() {
                     {Array.from({ length: 200 }).map(() => Math.random().toString(2).substring(2)).join('')}
                 </div>
 
-                <div className="flex-1 flex items-center justify-center relative z-10 p-4">
+                <div className="flex-1 flex items-center justify-center relative z-10 p-4 min-h-0">
                     <AnimatePresence mode="wait">
                         {pulling ? (
                             <motion.div key="pulling" className="flex flex-col items-center">
@@ -78,9 +78,9 @@ export default function GachaPortal() {
                                 <div className="text-[var(--color-neon-green)] font-bold animate-pulse">DOWNLOADING ASSETS...</div>
                             </motion.div>
                         ) : (revealedDevs || revealedArtifacts) ? (
-                            <motion.div key="revealed" className="flex flex-col items-center w-full h-full">
-                                <h2 className="text-[var(--color-neon-gold)] text-xl font-bold mb-6">UPLINK SUCCESSFUL</h2>
-                                <div className="flex gap-4 overflow-x-auto w-full justify-center p-4 custom-scrollbar flex-wrap">
+                            <motion.div key="revealed" className="flex flex-col items-center w-full h-full min-h-0">
+                                <h2 className="text-[var(--color-neon-gold)] text-xl font-bold mb-4 shrink-0">UPLINK SUCCESSFUL</h2>
+                                <div className="flex gap-4 overflow-y-auto w-full justify-center p-4 custom-scrollbar flex-wrap flex-1 content-start min-h-0">
                                     {revealedDevs?.map((dev, i) => (
                                         <motion.div
                                             initial={{ opacity: 0, y: 50 }}
@@ -113,7 +113,7 @@ export default function GachaPortal() {
                                 </div>
                                 <button
                                     onClick={clearRevealed}
-                                    className="mt-8 border border-white text-white px-8 py-2 hover:bg-white/20 transition-colors cursor-pointer"
+                                    className="mt-4 shrink-0 border border-white text-white px-8 py-2 hover:bg-white/20 transition-colors cursor-pointer"
                                 >
                                     ACKNOWLEDGE
                                 </button>

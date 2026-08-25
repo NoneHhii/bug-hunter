@@ -5,6 +5,7 @@ import { ARTIFACTS, type ArtifactDef } from '../game/constants/artifacts';
 export interface OwnedDev extends DevClass {
   uid: string;
   level: number;
+  exp: number; // Tích lũy điểm EXP
   star: number;
   equippedArtifacts: string[];
   currentHp: number;
@@ -14,13 +15,16 @@ export interface OwnedDev extends DevClass {
 export interface ProjectState {
   id: string;
   name: string;
+  location: string;
+  x: number;
+  y: number;
   complexity: number;
   maxProgress: number;
   currentProgress: number;
   deadlineTurns: number;
   reward: number;
   isActive: boolean;
-  status: 'IDLE' | 'CODING' | 'BUG_ENCOUNTERED' | 'FINISHED';
+  status: 'IDLE' | 'CODING' | 'BUG_ENCOUNTERED' | 'FINISHED' | 'FAILED';
 }
 
 export interface OwnedArtifact extends ArtifactDef {
@@ -53,6 +57,8 @@ interface GameState {
   assignToTeam: (teamType: 'coding' | 'campaign' | 'boss', devUids: string[]) => void;
   setDevActivity: (devUid: string, activity: 'IDLE' | 'CODING' | 'CAMPAIGN' | 'BOSS') => void;
   damageDev: (devUid: string, amount: number) => void;
+  healDev: (devUid: string, amount: number) => void;
+  mergeDevs: (targetUid: string, sacrificeUid: string) => void;
   
   // Project Actions
   generateProjects: () => void;
@@ -62,7 +68,10 @@ interface GameState {
   resolveBug: (success: boolean) => void;
   ignoreBug: () => void;
   completeProject: () => void;
+  failProject: () => void;
+  dismissProject: () => void;
   addVouchers: (amount: number) => void;
+  consumeCoffee: (amount: number) => boolean;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -79,9 +88,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   campaignTeam: [],
   bossTeam: [],
   availableProjects: [
-      { id: '1', name: 'Landing Page v2', complexity: 2, maxProgress: 500, currentProgress: 0, deadlineTurns: 50, reward: 1000, isActive: false, status: 'IDLE' },
-      { id: '2', name: 'Auth Microservice', complexity: 5, maxProgress: 1500, currentProgress: 0, deadlineTurns: 100, reward: 4000, isActive: false, status: 'IDLE' },
-      { id: '3', name: 'Data Pipeline', complexity: 8, maxProgress: 3000, currentProgress: 0, deadlineTurns: 150, reward: 10000, isActive: false, status: 'IDLE' }
+      { id: '1', name: 'Landing Page v2', location: 'US_EAST_1', x: 22, y: 35, complexity: 2, maxProgress: 500, currentProgress: 0, deadlineTurns: 50, reward: 1000, isActive: false, status: 'IDLE' },
+      { id: '2', name: 'Auth Microservice', location: 'EU_CENT', x: 48, y: 32, complexity: 5, maxProgress: 1500, currentProgress: 0, deadlineTurns: 100, reward: 4000, isActive: false, status: 'IDLE' },
+      { id: '3', name: 'Data Pipeline', location: 'ASIA_PAC', x: 80, y: 45, complexity: 8, maxProgress: 3000, currentProgress: 0, deadlineTurns: 150, reward: 10000, isActive: false, status: 'IDLE' }
   ],
   currentProject: null,
 
@@ -92,26 +101,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     
     const newDevs: OwnedDev[] = [];
     for (let i = 0; i < times; i++) {
-      // Logic gacha đơn giản
-      let selectedClassKey = 'intern';
+      let targetStar = 2;
       const roll = Math.random();
       
       if (times === 10 && i === 9) {
-          // Guarantee 4* in 10 pull
-          selectedClassKey = roll < 0.2 ? 'architect' : 'senior';
+          targetStar = roll < 0.2 ? 5 : 4;
       } else {
-          if (roll < 0.05) selectedClassKey = 'architect'; // 5% 5 star
-          else if (roll < 0.2) selectedClassKey = 'senior'; // 15% 4 star
-          else if (roll < 0.6) selectedClassKey = 'junior'; // 40% 3 star
-          else selectedClassKey = 'intern'; // 40% 2 star
+          if (roll < 0.05) targetStar = 5;
+          else if (roll < 0.2) targetStar = 4;
+          else if (roll < 0.6) targetStar = 3;
+          else targetStar = 2;
       }
       
-      const baseClass = CLASSES[selectedClassKey];
+      const availableClasses = Object.values(CLASSES).filter(c => c.defaultStar === targetStar);
+      const baseClass = availableClasses.length > 0 
+          ? availableClasses[Math.floor(Math.random() * availableClasses.length)]
+          : Object.values(CLASSES)[0];
       
       newDevs.push({
         ...baseClass,
         uid: crypto.randomUUID(),
-        level: 1,
+        level: 0,
+        exp: 0,
         star: baseClass.defaultStar,
         equippedArtifacts: [],
         currentHp: baseClass.baseStats.hp,
@@ -129,22 +140,25 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   rollArtifactGacha: (times) => {
     const state = get();
-    const cost = times * 100; // Rẻ hơn Dev Gacha
+    const cost = times * 100;
     if (state.coffeeBeans < cost) return null;
     
     const newArtifacts: OwnedArtifact[] = [];
     
     for (let i = 0; i < times; i++) {
+        let targetStar = 2;
         const roll = Math.random();
-        let selectedKey = 'coffee_thermos';
         
-        if (roll < 0.05) selectedKey = 'stackoverflow_pro'; // 5% 5 star
-        else if (roll < 0.2) selectedKey = 'noise_cancelling_hp'; // 15% 4 star
-        else if (roll < 0.5) selectedKey = 'dual_monitor'; // 30% 3 star
-        else if (roll < 0.8) selectedKey = 'mechanical_keyboard'; // 30% 3 star
-        else selectedKey = 'coffee_thermos'; // 20% 2 star
+        if (roll < 0.05) targetStar = 5;
+        else if (roll < 0.2) targetStar = 4;
+        else if (roll < 0.5) targetStar = 3;
+        else targetStar = 2;
         
-        const baseArt = ARTIFACTS[selectedKey];
+        const availableArts = Object.values(ARTIFACTS).filter(a => a.rarity === targetStar);
+        const baseArt = availableArts.length > 0
+            ? availableArts[Math.floor(Math.random() * availableArts.length)]
+            : Object.values(ARTIFACTS)[0];
+            
         newArtifacts.push({
             ...baseArt,
             uid: crypto.randomUUID(),
@@ -187,6 +201,70 @@ export const useGameStore = create<GameState>((set, get) => ({
       newInventory[devIndex] = newDev;
       
       return { inventory: newInventory };
+  }),
+
+  mergeDevs: (targetUid, sacrificeUid) => set((state) => {
+    const targetIdx = state.inventory.findIndex(d => d.uid === targetUid);
+    const sacrificeIdx = state.inventory.findIndex(d => d.uid === sacrificeUid);
+    
+    if (targetIdx === -1 || sacrificeIdx === -1 || targetUid === sacrificeUid) return state;
+    
+    const target = state.inventory[targetIdx];
+    const sacrifice = state.inventory[sacrificeIdx];
+    
+    // Only allow merging identical classes
+    if (target.id !== sacrifice.id) return state;
+    if (sacrifice.activity !== 'IDLE') return state; // Cannot sacrifice busy devs
+    
+    let maxLevel = 255;
+    if (target.star <= 2) maxLevel = 127; // int8
+    else if (target.star >= 5) maxLevel = 65535; // uint16
+    
+    // Required EXP is Math.pow(2, level + 6), max capped at 2^30
+    const getRequiredExp = (lvl: number) => Math.pow(2, Math.min(lvl + 6, 30));
+    
+    let currentLvl = target.level;
+    let currentExp = target.exp;
+    
+    // Identical dev merge gives exactly enough EXP for 1 full level up at current level
+    currentExp += getRequiredExp(currentLvl);
+    
+    let justHitLevel1 = false;
+    
+    while (currentLvl < maxLevel && currentExp >= getRequiredExp(currentLvl)) {
+      currentExp -= getRequiredExp(currentLvl);
+      currentLvl++;
+      if (currentLvl === 1 && target.level === 0) justHitLevel1 = true;
+    }
+    
+    // 5% stat boost per level
+    const levelDiff = currentLvl - target.level;
+    const statMultiplier = 1 + (0.05 * levelDiff);
+    
+    const newTarget = {
+      ...target,
+      level: currentLvl,
+      exp: currentExp,
+      baseStats: {
+        hp: Math.floor(target.baseStats.hp * statMultiplier),
+        atk: Math.floor(target.baseStats.atk * statMultiplier),
+        def: Math.floor(target.baseStats.def * statMultiplier),
+        spd: Math.floor(target.baseStats.spd * statMultiplier)
+      },
+      currentHp: Math.floor(target.baseStats.hp * statMultiplier) // Heal to full
+    };
+    
+    if (justHitLevel1) {
+        // Trigger easter egg event via window dispatch or toast
+        // Handled by UI component when noticing level change
+        window.dispatchEvent(new CustomEvent('EASTER_EGG_LVL1', { detail: { name: newTarget.name } }));
+    }
+    
+    const newInventory = [...state.inventory];
+    newInventory[targetIdx] = newTarget;
+    newInventory.splice(sacrificeIdx, 1);
+    
+    return { inventory: newInventory };
   }),
 
   assignToTeam: (teamType, devUids) => set((state) => {
@@ -239,12 +317,34 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { inventory: newInventory };
   }),
 
+  healDev: (devUid, amount) => set((state) => {
+      const idx = state.inventory.findIndex(d => d.uid === devUid);
+      if (idx !== -1) {
+          const newInv = [...state.inventory];
+          newInv[idx] = { ...newInv[idx], currentHp: Math.min(newInv[idx].baseStats.hp, newInv[idx].currentHp + amount) };
+          return { inventory: newInv };
+      }
+      return state;
+  }),
+
   generateProjects: () => set((state) => {
+      const locations = [
+          { location: 'US_WEST_2', x: 15, y: 38 },
+          { location: 'US_EAST_1', x: 25, y: 35 },
+          { location: 'SA_EAST_1', x: 30, y: 70 },
+          { location: 'EU_CENT_1', x: 50, y: 30 },
+          { location: 'AF_SOUTH_1', x: 52, y: 65 },
+          { location: 'AP_SOUTHEAST_1', x: 75, y: 60 },
+          { location: 'AP_NORTHEAST_1', x: 85, y: 35 },
+      ];
+      // shuffle locations
+      const shuffled = [...locations].sort(() => 0.5 - Math.random());
+      
       return {
           availableProjects: [
-              { id: crypto.randomUUID(), name: 'UI Hotfix', complexity: 1 + state.techDebt, maxProgress: 300, currentProgress: 0, deadlineTurns: 30, reward: 800, isActive: false, status: 'IDLE' },
-              { id: crypto.randomUUID(), name: 'Payment Gateway', complexity: 6 + state.techDebt, maxProgress: 2000, currentProgress: 0, deadlineTurns: 120, reward: 5000, isActive: false, status: 'IDLE' },
-              { id: crypto.randomUUID(), name: 'AI Recommendation', complexity: 10 + state.techDebt, maxProgress: 5000, currentProgress: 0, deadlineTurns: 200, reward: 15000, isActive: false, status: 'IDLE' }
+              { id: crypto.randomUUID(), name: 'UI Hotfix', ...shuffled[0], complexity: 1 + state.techDebt, maxProgress: 300, currentProgress: 0, deadlineTurns: 30, reward: 800, isActive: false, status: 'IDLE' },
+              { id: crypto.randomUUID(), name: 'Payment Gateway', ...shuffled[1], complexity: 6 + state.techDebt, maxProgress: 2000, currentProgress: 0, deadlineTurns: 120, reward: 5000, isActive: false, status: 'IDLE' },
+              { id: crypto.randomUUID(), name: 'AI Recommendation', ...shuffled[2], complexity: 10 + state.techDebt, maxProgress: 5000, currentProgress: 0, deadlineTurns: 200, reward: 15000, isActive: false, status: 'IDLE' }
           ]
       };
   }),
@@ -287,9 +387,19 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   resolveBug: (success) => set((state) => {
       if (!state.currentProject) return state;
+      if (state.currentProject.status === 'FAILED') return state;
       if (success) {
-          // Thắng: tiếp tục code
-          return { currentProject: { ...state.currentProject, status: 'CODING' } };
+          // Thắng: tiếp tục code + hồi 30% máu cho các dev trong team
+          const newInv = state.inventory.map(dev => {
+              if (state.bossTeam.includes(dev.uid) && dev.currentHp > 0) {
+                  return { ...dev, currentHp: Math.min(dev.baseStats.hp, dev.currentHp + (dev.baseStats.hp * 0.3)) };
+              }
+              return dev;
+          });
+          return { 
+              currentProject: { ...state.currentProject, status: 'CODING' },
+              inventory: newInv
+          };
       } else {
           // Thua: Trừ 15% tiến độ
           const penalty = state.currentProject.maxProgress * 0.15;
@@ -324,7 +434,32 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
   }),
 
+  failProject: () => set((state) => {
+      const proj = state.currentProject;
+      if (!proj) return state;
+      
+      // Penalty: increase tech debt, reduce funds
+      return {
+          currentProject: { ...proj, status: 'FAILED' },
+          techDebt: state.techDebt + Math.ceil(proj.complexity / 2),
+          companyFunds: Math.max(0, state.companyFunds - Math.floor(proj.reward / 2)),
+          codingTeam: [],
+          inventory: state.inventory.map(d => state.codingTeam.includes(d.uid) ? { ...d, activity: 'IDLE' } : d)
+      };
+  }),
+
+  dismissProject: () => set({ currentProject: null }),
+
   addVouchers: (amount) => set((state) => ({
       vouchers: state.vouchers + amount
   })),
+
+  consumeCoffee: (amount) => {
+      const state = get();
+      if (state.coffeeBeans >= amount) {
+          set({ coffeeBeans: state.coffeeBeans - amount });
+          return true;
+      }
+      return false;
+  }
 }));
