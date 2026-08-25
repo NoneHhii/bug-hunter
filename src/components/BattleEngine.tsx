@@ -46,8 +46,9 @@ export default function BattleEngine({ onBattleEnd }: { onBattleEnd: (success: b
     const bossGaugeRef = useRef(0);
     const devGaugesRef = useRef<Record<string, number>>({});
     const devCommitsRef = useRef<Record<string, number>>({});
+    const [, setRenderTrigger] = useState(0); // For UI updates
 
-    const [renderTrigger, setRenderTrigger] = useState(0); // For UI updates
+
     const [attackingUid, setAttackingUid] = useState<string | null>(null);
     const [bossHit, setBossHit] = useState(false);
     const [screenShake, setScreenShake] = useState(false);
