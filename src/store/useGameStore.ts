@@ -174,10 +174,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const newInventory = [...state.inventory];
       newInventory[devIndex] = newDev;
       
-      // Update team array if dev is in team
-      const newTeam = state.team.map(d => d?.uid === devUid ? newDev : d);
-
-      return { inventory: newInventory, team: newTeam };
+      return { inventory: newInventory };
   }),
 
   unequipArtifact: (devUid, artifactUid) => set((state) => {
